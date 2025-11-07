@@ -281,15 +281,55 @@ var ExtensionModel = function(e) {
     return _.str.prune(self.name(),40);
   })
 
-  self.toggle = function() {
-    self.status(!self.status());
+  self.toggle = async function() {
+    // Check if extension is locked before allowing toggle
+    const currentStatus = self.status();
+    
+    // If currently enabled and trying to disable, check lock
+    if (currentStatus) {
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'isLocked',
+          extensionId: self.id()
+        });
+        
+        if (response && response.locked) {
+          // Extension is locked, don't allow disable
+          console.log('Extension is locked, cannot disable:', self.name());
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking lock status:', error);
+        // If there's an error checking, allow the toggle to proceed
+      }
+    }
+    
+    // Proceed with toggle
+    self.status(!currentStatus);
   };
 
   self.enable = function() {
     self.status(true);
   };
 
-  self.disable = function() {
+  self.disable = async function() {
+    // Check if extension is locked before allowing disable
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'isLocked',
+        extensionId: self.id()
+      });
+      
+      if (response && response.locked) {
+        // Extension is locked, don't allow disable
+        console.log('Extension is locked, cannot disable:', self.name());
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking lock status:', error);
+      // If there's an error checking, allow the disable to proceed
+    }
+    
     self.status(false);
   }
 
